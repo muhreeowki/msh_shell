@@ -17,6 +17,7 @@ int main(int argc, char *argv[]) {
   // TODO: Handle advanced builtin comands: grep, find, cut, cp, mv.
 
   char **tokens, *line = malloc(sizeof(char) * ARG_MAX);
+  int in_double_quotes = 0, in_single_quotes = 0;
 
   // Read Eval Print Loop
   for (;;) {
@@ -26,33 +27,43 @@ int main(int argc, char *argv[]) {
       printf("Bye.");
       return 0;
     };
+
     // Evaluate (Scanning/Lexing)
-    // Count spaces and allocat memory
     int spaces = 0;
     char *lp, *start;
-    for (lp = line; *lp; lp++)
-      if (isspace(*lp))
+    for (lp = line; *lp; lp++) { /* count the spaces */
+      if (*lp == '"' && !in_single_quotes)
+        in_double_quotes = in_double_quotes ? 0 : 1;
+      else if (*lp == '\'' && !in_double_quotes)
+        in_single_quotes = in_single_quotes ? 0 : 1;
+      else if (isspace(*lp) && !in_double_quotes && !in_single_quotes)
         spaces++;
-    tokens = malloc(sizeof(char *) * spaces+1);
+    }
+
+    tokens = malloc(sizeof(char *) * spaces + 1);
     // Split up the line into tokens
     lp = line, start = lp;
     int i, t;
-    for (i = 0, t = 0; *(lp+i); i++) {
-      if (isspace(*(lp+i))) {
-        *(lp+i) = '\0';
-        *(tokens+t++) = start;
-        start = lp+i+1;
+    for (i = 0, t = 0; *(lp + i); i++) {
+      if (*(lp + i) == '"' && !in_single_quotes)
+        in_double_quotes = in_double_quotes ? 0 : 1;
+      if (*(lp + i) == '\'' && !in_double_quotes)
+        in_single_quotes = in_single_quotes ? 0 : 1;
+      if (isspace(*(lp + i)) && !in_double_quotes && !in_single_quotes) {
+        *(lp + i) = '\0';
+        *(tokens + t++) = start;
+        start = lp + i + 1;
       }
     }
-    *(tokens+t) = start;
+    *(tokens + t) = start;
     // Run commands
     for (t = 0; t < spaces; t++)
-      printf("[%d] %s\n", t, *(tokens+t));
+      printf("[%d] %s\n", t, *(tokens + t));
     // Repeat
     free(tokens);
   }
   free(line);
-  return 0;
+  return 1;
 }
 
 int _getline(char *line, int max) {
