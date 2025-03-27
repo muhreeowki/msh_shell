@@ -25,22 +25,23 @@ int main(int argc, char *argv[]) {
   // Read Eval Print Loop
   for (;;) {
     printf("> ");
-    // Read input (getline). Exit on EOF.
-    if (!_getline(line, ARG_MAX)) {
-      printf("Bye.");
-      return 0;
-    };
-
-    // Evaluate (Scanning/Lexing)
+    /* Read input (getline). Exit on EOF. */
+    if (!_getline(line, ARG_MAX)) return 0;
+    /* Scanning/Lexing */
+    // count
     int total_tokens = count_tokens(line);
-    if (total_tokens == -1)
-      exit(-1);
+    if (total_tokens == -1) continue;
+    if (total_tokens > 0) printf("token count: %d\n", total_tokens);
+    // allocate memory for list of tokens
     tokens = malloc(sizeof(char *) * total_tokens + 1);
-    printf("token count: %d\n", total_tokens);
-    // Split up the line into tokens
-    int t = scan_tokens(line, tokens, total_tokens);
+    // get all the tokens
+    int total_scanned = scan_tokens(line, tokens, total_tokens);
+    if (total_tokens != total_scanned){
+      printf("error: token count is %d but only scanned %d\n", total_tokens, total_scanned);
+      continue;
+    }
+    print_tokens(tokens, total_scanned);
     // Run commands
-    print_tokens(tokens, t);
     // Repeat
     free(tokens);
   }
