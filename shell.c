@@ -8,7 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-int _getline(char *line, int max);
+int read_line(char *line, int max);
 int count_tokens(const char *line);
 int scan_tokens(char *line, char **tokens, int n);
 void print_tokens(char **tokens, int lim);
@@ -19,61 +19,68 @@ int main(int argc, char *argv[]) {
   // TODO: Handle builtin comands: ls, cd, cat, echo, help.
   // TODO: Handle advanced builtin comands: grep, find, cut, cp, mv.
 
-  char **tokens, *line = malloc(sizeof(char) * ARG_MAX);
+  char **tokens, *line;
   int in_double_quotes = 0, in_single_quotes = 0;
 
   // Read Eval Print Loop
   for (;;) {
+    line = malloc(sizeof(char) * ARG_MAX);
     printf("> ");
     /* Read input (getline). Exit on EOF. */
-    if (!_getline(line, ARG_MAX)) return 0;
+    if (read_line(line, ARG_MAX) == 0)
+      return 0;
     /* Scanning/Lexing */
     // count
     int total_tokens = count_tokens(line);
-    if (total_tokens == -1) continue;
-    if (total_tokens > 0) printf("token count: %d\n", total_tokens);
+    if (total_tokens == -1)
+      continue;
+    if (total_tokens > 0)
+      printf("token count: %d\n", total_tokens);
     // allocate memory for list of tokens
-    tokens = malloc(sizeof(char *) * total_tokens + 1);
+    tokens = malloc(sizeof(char *) * total_tokens);
     // get all the tokens
     int total_scanned = scan_tokens(line, tokens, total_tokens);
-    if (total_tokens != total_scanned){
-      printf("error: token count is %d but only scanned %d\n", total_tokens, total_scanned);
+    if (total_tokens != total_scanned) {
+      printf("error: token count is %d but only scanned %d\n", total_tokens,
+             total_scanned);
       continue;
     }
     print_tokens(tokens, total_scanned);
     // Run commands
     // Repeat
+    free(line);
     free(tokens);
   }
-  free(line);
   return 1;
 }
 
 /* _getline: gets line input of max length, stores it in line and returns the
  * length of the line. */
-int _getline(char *line, int max) {
-  if (fgets(line, max, stdin) == NULL)
-    return 0;
-  else
-    return strlen(line);
+int read_line(char *line, int max) {
+  int c, i = 0;
+
+  while ((c = getchar()) != EOF && c != '\n' && i < max - 1)
+    *(line + i++) = c;
+  *(line + i) = '\0';
+  return i;
 }
 
 /* count_tokens: returns the number of tokens in a line input. */
-int count_tokens(const char *lp) {
-  int in_double_quotes = 0, in_single_quotes = 0, total_tokens = 0;
-  const char *start = lp;
+int count_tokens(const char *line) {
+  int in_double_quotes = 0, in_single_quotes = 0, total_tokens = 1;
+  const char *start = line;
 
-  while (*lp) {
+  while (*line) {
     if (isspace(*start))
-      start = ++lp;
-    else if (*lp == '"' && !in_single_quotes)
-      in_double_quotes = in_double_quotes ? 0 : 1, lp++;
-    else if (*lp == '\'' && !in_double_quotes)
-      in_single_quotes = in_single_quotes ? 0 : 1, lp++;
-    else if (isspace(*lp) && !in_double_quotes && !in_single_quotes)
-      start = lp, total_tokens++;
+      start = ++line;
+    else if (*line == '"' && !in_single_quotes)
+      in_double_quotes = in_double_quotes ? 0 : 1, line++;
+    else if (*line == '\'' && !in_double_quotes)
+      in_single_quotes = in_single_quotes ? 0 : 1, line++;
+    else if (isspace(*line) && !in_double_quotes && !in_single_quotes)
+      start = line, total_tokens++;
     else
-      lp++;
+      line++;
   }
 
   if (in_double_quotes || in_single_quotes) { /*non terminated string*/
@@ -110,11 +117,12 @@ int scan_tokens(char *line, char **tokens, int lim) {
   }
 
   *(tokens + t) = start;
-  return t;
+  return t+1;
 }
 
 /* print_tokens: prints a list of tokens. */
 void print_tokens(char **tokens, int lim) {
   for (int i = 0; i < lim; i++)
-    printf("[index: %d] [len: %lu] %s\n", i, strlen(*(tokens + i)), *(tokens + i));
+    printf("[index: %d] [len: %lu] %s\n", i, strlen(*(tokens + i)),
+           *(tokens + i));
 }
