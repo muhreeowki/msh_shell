@@ -8,7 +8,10 @@
 #include <stdlib.h>
 #include <string.h>
 
-int read_line(char *line, int max);
+#define BUFSIZE 64
+#define EXIT_FAILURE 1
+
+char *read_line();
 int count_tokens(const char *line);
 int scan_tokens(char *line, char **tokens, int n);
 void print_tokens(char **tokens, int lim);
@@ -24,20 +27,22 @@ int main(int argc, char *argv[]) {
 
   // Read Eval Print Loop
   for (;;) {
-    line = malloc(sizeof(char) * ARG_MAX);
     printf("> ");
     /* Read input (getline). Exit on EOF. */
-    if (read_line(line, ARG_MAX) == 0)
-      return 0;
+    line = read_line();
     /* Scanning/Lexing */
     // count
     int total_tokens = count_tokens(line);
     if (total_tokens == -1)
-      continue;
+      exit(EXIT_FAILURE);
     if (total_tokens > 0)
       printf("token count: %d\n", total_tokens);
     // allocate memory for list of tokens
     tokens = malloc(sizeof(char *) * total_tokens);
+    if (!tokens) {
+      printf("msh: failed to allocate memory for tokens.");
+      exit(EXIT_FAILURE);
+    }
     // get all the tokens
     int total_scanned = scan_tokens(line, tokens, total_tokens);
     if (total_tokens != total_scanned) {
@@ -56,19 +61,41 @@ int main(int argc, char *argv[]) {
 
 /* _getline: gets line input of max length, stores it in line and returns the
  * length of the line. */
-int read_line(char *line, int max) {
-  int c, i = 0;
+char *read_line() {
+  int c, i = 0, max = BUFSIZE;
+  char *line = malloc(sizeof(char) * max);
 
-  while ((c = getchar()) != EOF && c != '\n' && i < max - 1)
+  if (!line) {
+    printf("msh: failed to allocate memory for tokens.");
+    exit(EXIT_FAILURE);
+  }
+
+  while ((c = getchar()) != EOF && c != '\n') {
+    // reallocate memory as needed
+    if (i >= max) {
+      max += BUFSIZE;
+      line = realloc(line, max);
+      printf("reallocated memory!");
+      if (!line) {
+        printf("msh: failed to allocate memory for tokens.");
+        exit(EXIT_FAILURE);
+      }
+    }
+
     *(line + i++) = c;
+  }
+
   *(line + i) = '\0';
-  return i;
+  return line;
 }
 
 /* count_tokens: returns the number of tokens in a line input. */
 int count_tokens(const char *line) {
   int in_double_quotes = 0, in_single_quotes = 0, total_tokens = 1;
   const char *start = line;
+
+  if (line == NULL || strlen(line) <= 0)
+    return 0;
 
   while (*line) {
     if (isspace(*start))
@@ -117,7 +144,7 @@ int scan_tokens(char *line, char **tokens, int lim) {
   }
 
   *(tokens + t) = start;
-  return t+1;
+  return t + 1;
 }
 
 /* print_tokens: prints a list of tokens. */
