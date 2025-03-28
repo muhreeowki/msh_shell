@@ -106,22 +106,29 @@ char **get_tokens(char *line) {
       in_single_quotes = in_single_quotes ? 0 : 1;
       line++;
     } else if (isspace(*line) && !in_double_quotes && !in_single_quotes) {
-      *line++ = '\0';
+      *line = '\0';
       *(tokens + i++) = start;
+      while (isspace(*++line))
+        ;
+      if(!(*line)) {
+        start = NULL;
+        break;
+      }
       start = line;
     } else {
       line++;
     }
   }
 
-  *(tokens + i) = start;
+  if (start && !isspace(*start))
+    *(tokens + i++) = start;
 
   if (in_double_quotes || in_single_quotes) { /*non terminated string*/
     printf("error: non terminated quote\n");
     return NULL;
   }
 
-  print_tokens(tokens, i == 0 ? 1: i+1);
+  // print_tokens(tokens, i);
   return tokens;
 }
 
