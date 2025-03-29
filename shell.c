@@ -7,23 +7,34 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <wait.h>
 
 #define TOKENS_BUFSIZE 64
 #define BUFSIZE 1024
 
+void repl();
 char *read_line();
 int count_tokens(const char *line);
 char **get_tokens(char *line);
 void print_tokens(char **tokens, int lim);
+int run_program(char **tokens);
 
 int main(int argc, char *argv[]) {
   // TODO: Handle bash files
   // TODO: Handle History
   // TODO: Handle builtin comands: ls, cd, cat, echo, help.
   // TODO: Handle advanced builtin comands: grep, find, cut, cp, mv.
+  repl();
 
+  return 0;
+}
+
+void repl() {
   char **tokens = NULL, *line = NULL;
-  int total_tokens;
+  int total_tokens, status;
 
   // Read Eval Print Loop
   for (;;) {
@@ -39,11 +50,11 @@ int main(int argc, char *argv[]) {
     if (!tokens)
       continue;
     /* Run commands */
+    status = run_program(tokens);
     // Repeat
     free(line);
     free(tokens);
   }
-  return 0;
 }
 
 /* _getline: gets line input of max length, stores it in line and returns the
@@ -130,6 +141,36 @@ char **get_tokens(char *line) {
 
   // print_tokens(tokens, i);
   return tokens;
+}
+
+/*
+ * run_program: runs program files in the system. 
+ * It returns the exit status of the program.
+ */
+int run_program(char **tokens) {
+  char *cmd = *tokens;
+  pid_t pid, wpid;
+  int status;
+
+  pid = fork();
+
+  // TODO: Use execve. Find the program file manually using environ.
+  if (pid == 0) { // Child Process
+    // Execute the command
+    // if the exec function returns, there was an error.
+    if (!execvp(cmd, tokens)) { 
+      perror("msh");
+    }
+    exit(EXIT_FAILURE);
+  } else if (pid < 0) { // Error forking the process
+    perror("msh");
+  } else { // Parent process
+    do {
+      wpid = waitpid(pid, &status, WUNTRACED);
+    } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+  }
+
+  return status;
 }
 
 /* print_tokens: prints a list of tokens. */
