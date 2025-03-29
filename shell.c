@@ -11,6 +11,7 @@
 // improved prompt.
 
 #include "shell.h"
+#include <string.h>
 
 int main(int argc, char *argv[]) {
   repl();
@@ -36,7 +37,7 @@ void repl() {
     if (!tokens)
       continue;
     /* Run commands */
-    status = run_program(tokens);
+    status = executor(tokens);
     // Repeat
     free(line);
     free(tokens);
@@ -127,6 +128,20 @@ char **get_tokens(char *line) {
 
   // print_tokens(tokens, i);
   return tokens;
+}
+
+int executor(char **tokens) {
+  char *cmd = *tokens;
+
+  if (strcmp(cmd, "pwd") == 0)
+    return msh_pwd();
+
+  for (int i = 0; i < (sizeof builtins / sizeof(Builtin)); i++) {
+    if (strcmp(cmd, builtins[i].name) == 0)
+      return builtins[i].func(++tokens);
+  }
+
+  return run_program(tokens);
 }
 
 /*

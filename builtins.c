@@ -1,9 +1,13 @@
 #include "shell.h"
+#include <stdio.h>
+#include <unistd.h>
 
 /* msh_echo: prints to screen a list of strings. */
-int msh_echo(char **args, int count) {
-  for (int i = 0; i < count && *(args + i); i++)
-    printf((i == count - 1) ? "%s" : "%s ", *(args + i));
+int msh_echo(char **args) {
+  while (*args) {
+    printf(*(args + 1) ? "%s ": "%s", *args);
+    args++;
+  }
   putchar('\n');
   return 0;
 }
@@ -16,4 +20,22 @@ void msh_exit(int *status) {
 }
 
 /* msh_pwd: like pwd, prints currect working directory. */
-void msh_pwd() {}
+int msh_pwd() {
+  char *buf = malloc(sizeof(char) * BUFSIZE);
+
+  printf("msh_pwd: %s\n", getcwd(buf, BUFSIZE));
+  return 0;
+}
+
+int msh_help(char **args) { 
+  printf("msh_help \n");
+  return 0;
+}
+
+int msh_chdir(char **args) {
+  int status = chdir(*args);
+  char *buf = malloc(sizeof(char) * BUFSIZE);
+
+  printf("msh_chdir: %s\n", getcwd(buf, BUFSIZE));
+  return status; 
+}
