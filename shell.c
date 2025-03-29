@@ -1,32 +1,18 @@
-// TODO: Implement a POSIX shell with builtin functions like cut, cat, ls, cd,
-// and more. It should have piping comands into one another, and writing output
-// to files.
+// TODO: Implement the following features.
+// builtin comands: cd, cat, echo, help.
+// environment variables: getenv, setenv, unsetenv, export etc.
+// alliases.
+// shell opperations: |, &, >, <, >>, <<, ||, &&
+// script files.
+// advanced builtin comands: fzf, grep, find, cut, cp, mv.
+// tab completion.
+// command history.
+// reverse search command history.
+// improved prompt.
 
-#include <ctype.h>
-#include <linux/limits.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/types.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <wait.h>
-
-#define TOKENS_BUFSIZE 64
-#define BUFSIZE 1024
-
-void repl();
-char *read_line();
-int count_tokens(const char *line);
-char **get_tokens(char *line);
-void print_tokens(char **tokens, int lim);
-int run_program(char **tokens);
+#include "shell.h"
 
 int main(int argc, char *argv[]) {
-  // TODO: Handle bash files
-  // TODO: Handle History
-  // TODO: Handle builtin comands: ls, cd, cat, echo, help.
-  // TODO: Handle advanced builtin comands: grep, find, cut, cp, mv.
   repl();
 
   return 0;
@@ -121,7 +107,7 @@ char **get_tokens(char *line) {
       *(tokens + i++) = start;
       while (isspace(*++line))
         ;
-      if(!(*line)) {
+      if (!(*line)) {
         start = NULL;
         break;
       }
@@ -144,7 +130,7 @@ char **get_tokens(char *line) {
 }
 
 /*
- * run_program: runs program files in the system. 
+ * run_program: runs program files in the system.
  * It returns the exit status of the program.
  */
 int run_program(char **tokens) {
@@ -158,7 +144,7 @@ int run_program(char **tokens) {
   if (pid == 0) { // Child Process
     // Execute the command
     // if the exec function returns, there was an error.
-    if (!execvp(cmd, tokens)) { 
+    if (!execvp(cmd, tokens)) {
       perror("msh");
     }
     exit(EXIT_FAILURE);
