@@ -39,6 +39,9 @@ int msh_chdir(char **args);
 void msh_exit(int *status);
 int msh_pwd();
 
+// UTILS
+char *_getenv(char *name);
+
 static Builtin builtins[] = {
     {"echo", msh_echo}, {"help", msh_help}, {"cd", msh_chdir}};
 
