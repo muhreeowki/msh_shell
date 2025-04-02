@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/file.h>
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
@@ -41,6 +42,7 @@ int msh_pwd();
 
 // UTILS
 char *_getenv(char *name);
+char **getpaths();
 
 static Builtin builtins[] = {
     {"echo", msh_echo}, {"help", msh_help}, {"cd", msh_chdir}};
