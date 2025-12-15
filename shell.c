@@ -127,6 +127,8 @@ char **get_tokens(char *line) {
       if (state != NORMAL) {
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
+        if (state == ESCAPED)
+          state = NORMAL;
       } else {
         // printf("normal state\n");
         // Skip trailing whitespace
@@ -163,6 +165,8 @@ char **get_tokens(char *line) {
       } else {
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
+        if (state == ESCAPED)
+          state = NORMAL;
       }
       break;
     case '"':
@@ -185,11 +189,25 @@ char **get_tokens(char *line) {
       } else {
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
+        if (state == ESCAPED)
+          state = NORMAL;
       }
       break;
     case '\\':
+      if (state == NORMAL) {
+        state = ESCAPED;
+      } else {
+        *(buf + buf_count++) = c;
+        *(buf + buf_count) = '\0';
+        if (state == ESCAPED)
+          state = NORMAL;
+      }
       break;
     default:
+      // TODO: Handle Escaped Chars
+      if (state == ESCAPED) {
+        state = NORMAL;
+      }
       *(buf + buf_count++) = c;
       *(buf + buf_count) = '\0';
       break;
