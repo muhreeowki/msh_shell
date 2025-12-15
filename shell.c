@@ -126,7 +126,7 @@ char **get_tokens(char *line) {
     // printf("char: %c\n", c);
     switch (c) {
     case ' ':
-      printf("space\n");
+      // printf("space\n");
       if (state != NORMAL) {
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
@@ -137,15 +137,28 @@ char **get_tokens(char *line) {
           printf("skiping trailing whitespace\n");
           continue;
         }
-        // Add the token to the list
+        // Emit the token
         char *token = malloc(sizeof(char) * (buf_count + 1));
         token = strcpy(token, buf);
         *(tokens + token_count++) = token;
-        *buf = '\0'; // Reset the Buffer
+        // Reset the Buffer
+        *buf = '\0';
         buf_count = 0;
       }
       break;
     case '\'':
+      if (state == NORMAL) {
+        state = IN_SQUOTES;
+      } else if (state == IN_SQUOTES) {
+        // TODO: Handle Concatination by checking if the next character is
+        // another single quote Emit the token
+        char *token = malloc(sizeof(char) * (buf_count + 1));
+        token = strcpy(token, buf);
+        *(tokens + token_count++) = token;
+        // Reset the Buffer
+        *buf = '\0';
+        buf_count = 0;
+      }
       break;
     case '"':
       break;
