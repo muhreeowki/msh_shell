@@ -152,6 +152,28 @@ char **get_tokens(char *line) {
       } else if (state == IN_SQUOTES) {
         // TODO: Handle Concatination by checking if the next character is
         // another single quote Emit the token
+
+        // Check for Concatination: Check if the next char is another quote
+        if (*(line + i) == '\'') {
+          ++i;
+          continue;
+        }
+        // Emit the token
+        char *token = malloc(sizeof(char) * (buf_count + 1));
+        token = strcpy(token, buf);
+        *(tokens + token_count++) = token;
+        // Reset the Buffer
+        *buf = '\0';
+        buf_count = 0;
+        state = NORMAL;
+      }
+      break;
+    case '"':
+      if (state == NORMAL) {
+        state = IN_DQUOTES;
+      } else if (state == IN_DQUOTES) {
+        // TODO: Handle Concatination by checking if the next character is
+        // another single quote Emit the token
         char *token = malloc(sizeof(char) * (buf_count + 1));
         token = strcpy(token, buf);
         *(tokens + token_count++) = token;
@@ -159,8 +181,6 @@ char **get_tokens(char *line) {
         *buf = '\0';
         buf_count = 0;
       }
-      break;
-    case '"':
       break;
     case '\\':
       break;
