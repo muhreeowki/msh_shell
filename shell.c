@@ -11,6 +11,8 @@
 // improved prompt.
 
 #include "shell.h"
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 int main(int argc, char *argv[]) {
@@ -29,7 +31,7 @@ void repl() {
     /* Read input (getline). Exit on EOF. */
     line = read_line();
     if (!line) {
-      printf("bye.");
+      printf("bye.\n");
       exit(EXIT_FAILURE);
     }
     /* Scanning/Lexing */
@@ -37,7 +39,7 @@ void repl() {
     if (!tokens)
       continue;
     /* Run commands */
-    status = executor(tokens);
+    // status = executor(tokens);
     // Repeat
     free(line);
     free(tokens);
@@ -47,7 +49,7 @@ void repl() {
 /* _getline: gets line input of max length, stores it in line and returns the
  * length of the line. */
 char *read_line() {
-  int c, i = 0, max = BUFSIZE;
+  int c, i = 0, max = LINE_BUFSIZE;
   char *line = malloc(sizeof(char) * max);
 
   if (!line) {
@@ -58,11 +60,11 @@ char *read_line() {
   while ((c = getchar()) != EOF && c != '\n') {
     // reallocate memory as needed
     if (i >= max) {
-      max += BUFSIZE;
+      max += LINE_BUFSIZE;
       line = realloc(line, max);
       printf("reallocated memory!");
       if (!line) {
-        printf("msh: failed to allocate memory for tokens.");
+        printf("msh: failed to reallocate memory for tokens.");
         exit(EXIT_FAILURE);
       }
     }
@@ -80,53 +82,89 @@ char *read_line() {
 /* scan_tokens: splits an input line into a list of n tokens and returns the
  * number of tokens. */
 // TODO: Edgecase -> hello'world' is one token but should be two
+// TODO: Use an ENUM to keep track of the states (i.e NORMAL, IN_DOUBLE_QUOTES,
+// IN_SINGLE_QUOTES, ESCAPED)
 char **get_tokens(char *line) {
-  int i = 0, in_double_quotes = 0, in_single_quotes = 0, size = TOKENS_BUFSIZE;
-  char *token, *start = line, **tokens = malloc(size);
+  int c = 0, i = 0, list_size = TOKENS_LIST_SIZE, token_count = 0,
+      buf_size = BUFSIZE, buf_count = 0;
+  char *buf, **tokens;
+  State state = NORMAL;
 
-  while (*line) {
-    // reallocate space as needed
-    if (i >= size) {
-      size += TOKENS_BUFSIZE;
-      tokens = realloc(tokens, size);
+  tokens = malloc(sizeof(char *) * list_size);
+  if (!tokens) {
+    perror("msh: could not allocate memory");
+    exit(1);
+  }
+
+  buf = malloc(sizeof(char) * BUFSIZE);
+  if (!buf) {
+    perror("msh: could not allocate memory");
+    exit(1);
+  }
+
+  while ((c = *(line + i++))) {
+    // reallocate token list space as needed
+    if (token_count >= list_size) {
+      list_size += TOKENS_LIST_SIZE;
+      tokens = realloc(tokens, list_size);
       if (!tokens) {
         printf("msh: failed to allocate memory for tokens.");
         exit(EXIT_FAILURE);
       }
     }
-
-    if (isspace(*start)) {
-      start = ++line;
-    } else if (*line == '"' && !in_single_quotes) {
-      in_double_quotes = in_double_quotes ? 0 : 1;
-      line++;
-    } else if (*line == '\'' && !in_double_quotes) {
-      in_single_quotes = in_single_quotes ? 0 : 1;
-      line++;
-    } else if (isspace(*line) && !in_double_quotes && !in_single_quotes) {
-      *line = '\0';
-      *(tokens + i++) = start;
-      while (isspace(*++line))
-        ;
-      if (!(*line)) {
-        start = NULL;
-        break;
+    // reallocate buffer space as needed
+    if (buf_count + 1 >= buf_size) {
+      buf_size += BUFSIZE;
+      buf = realloc(buf, buf_size);
+      if (!buf) {
+        printf("msh: failed to allocate memory for tokens.");
+        exit(EXIT_FAILURE);
       }
-      start = line;
-    } else {
-      line++;
+    }
+
+    // Build the token
+    // printf("char: %c\n", c);
+    switch (c) {
+    case ' ':
+      printf("space\n");
+      if (state != NORMAL) {
+        *(buf + buf_count++) = c;
+        *(buf + buf_count) = '\0';
+      } else {
+        printf("normal state\n");
+        // Skip trailing whitespace
+        if (*buf == '\0') {
+          printf("skiping trailing whitespace\n");
+          continue;
+        }
+        // Add the token to the list
+        char *token = malloc(sizeof(char) * (buf_count + 1));
+        token = strcpy(token, buf);
+        *(tokens + token_count++) = token;
+        *buf = '\0'; // Reset the Buffer
+        buf_count = 0;
+      }
+      break;
+    case '\'':
+      break;
+    case '"':
+      break;
+    case '\\':
+      break;
+    default:
+      *(buf + buf_count++) = c;
+      *(buf + buf_count) = '\0';
+      break;
     }
   }
-
-  if (start && !isspace(*start))
-    *(tokens + i++) = start;
-
-  if (in_double_quotes || in_single_quotes) { /*non terminated string*/
-    printf("error: non terminated quote\n");
-    return NULL;
+  // append last token
+  if (*buf != '\0') {
+    char *token = malloc(sizeof(char) * (buf_count + 1));
+    token = strcpy(token, buf);
+    *(tokens + token_count++) = token;
   }
 
-  // print_tokens(tokens, i);
+  print_tokens(tokens, token_count);
   return tokens;
 }
 

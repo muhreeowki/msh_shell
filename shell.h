@@ -15,14 +15,16 @@
 // TODO: Use Unions or Something that allows for multiple
 // function declarations to be used in a single struct.
 typedef int (*BulitinFunc)(char **);
+typedef enum { NORMAL, IN_SQUOTES, IN_DQUOTES, ESCAPED } State;
 
 typedef struct builtin {
   char *name;
   BulitinFunc func;
 } Builtin;
 
-#define TOKENS_BUFSIZE 64
-#define BUFSIZE 1024
+#define TOKENS_LIST_SIZE 64
+#define LINE_BUFSIZE 1024
+#define BUFSIZE 16
 
 // SHELL REPL FUNCTIONS
 void repl();

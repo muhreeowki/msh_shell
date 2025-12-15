@@ -88,6 +88,6 @@ char **getpaths() {
   }
 
   // NULL terminate the array;
-  *(paths+i) = NULL;
+  *(paths + i) = NULL;
   return paths;
 }
