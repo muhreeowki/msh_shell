@@ -81,9 +81,6 @@ char *read_line() {
 
 /* scan_tokens: splits an input line into a list of n tokens and returns the
  * number of tokens. */
-// TODO: Edgecase -> hello'world' is one token but should be two
-// TODO: Use an ENUM to keep track of the states (i.e NORMAL, IN_DOUBLE_QUOTES,
-// IN_SINGLE_QUOTES, ESCAPED)
 char **get_tokens(char *line) {
   int c = 0, i = 0, list_size = TOKENS_LIST_SIZE, token_count = 0,
       buf_size = BUFSIZE, buf_count = 0;
@@ -131,10 +128,10 @@ char **get_tokens(char *line) {
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
       } else {
-        printf("normal state\n");
+        // printf("normal state\n");
         // Skip trailing whitespace
         if (*buf == '\0') {
-          printf("skiping trailing whitespace\n");
+          // printf("skiping trailing whitespace\n");
           continue;
         }
         // Emit the token
@@ -150,9 +147,6 @@ char **get_tokens(char *line) {
       if (state == NORMAL) {
         state = IN_SQUOTES;
       } else if (state == IN_SQUOTES) {
-        // TODO: Handle Concatination by checking if the next character is
-        // another single quote Emit the token
-
         // Check for Concatination: Check if the next char is another quote
         if (*(line + i) == '\'') {
           ++i;
@@ -166,20 +160,31 @@ char **get_tokens(char *line) {
         *buf = '\0';
         buf_count = 0;
         state = NORMAL;
+      } else {
+        *(buf + buf_count++) = c;
+        *(buf + buf_count) = '\0';
       }
       break;
     case '"':
       if (state == NORMAL) {
         state = IN_DQUOTES;
       } else if (state == IN_DQUOTES) {
-        // TODO: Handle Concatination by checking if the next character is
-        // another single quote Emit the token
+        // Check for Concatination: Check if the next char is another quote
+        if (*(line + i) == '"') {
+          ++i;
+          continue;
+        }
+        // Emit the token
         char *token = malloc(sizeof(char) * (buf_count + 1));
         token = strcpy(token, buf);
         *(tokens + token_count++) = token;
         // Reset the Buffer
         *buf = '\0';
         buf_count = 0;
+        state = NORMAL;
+      } else {
+        *(buf + buf_count++) = c;
+        *(buf + buf_count) = '\0';
       }
       break;
     case '\\':
@@ -195,6 +200,18 @@ char **get_tokens(char *line) {
     char *token = malloc(sizeof(char) * (buf_count + 1));
     token = strcpy(token, buf);
     *(tokens + token_count++) = token;
+  }
+
+  // Check for non terminated stuff
+  switch (state) {
+  case IN_SQUOTES:
+    perror("msh: non terminated single quote");
+    break;
+  case IN_DQUOTES:
+    perror("msh: non terminated double quote");
+    break;
+  default:
+    break;
   }
 
   print_tokens(tokens, token_count);
