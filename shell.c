@@ -39,7 +39,7 @@ void repl() {
     if (!tokens)
       continue;
     /* Run commands */
-    // status = executor(tokens);
+    status = executor(tokens);
     // Repeat
     free(line);
     free(tokens);
@@ -239,14 +239,20 @@ char **get_tokens(char *line) {
 int executor(char **tokens) {
   char *cmd = *tokens;
 
+  // Check if the command is a builtin
+  // - handle pwd
   if (strcmp(cmd, "pwd") == 0)
     return msh_pwd();
-
+  // - handle exit
+  if (strcmp(cmd, "exit") == 0)
+    msh_exit(0);
+  // - handle other builtins
   for (int i = 0; i < (sizeof builtins / sizeof(Builtin)); i++) {
     if (strcmp(cmd, builtins[i].name) == 0)
       return builtins[i].func(++tokens);
   }
 
+  // Not a builtin, run the binary from the system
   return run_program(tokens);
 }
 

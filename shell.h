@@ -46,6 +46,8 @@ int msh_pwd();
 char *_getenv(char *name);
 char **getpaths();
 
+// TODO: Impliment a hash table for the builtins so that you can find it by name
+// instead of looping through to find it by index
 static Builtin builtins[] = {
     {"echo", msh_echo}, {"help", msh_help}, {"cd", msh_chdir}};
 

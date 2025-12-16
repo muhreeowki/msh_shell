@@ -23,9 +23,11 @@ void msh_exit(int *status) {
 
 /* msh_pwd: like pwd, prints currect working directory. */
 int msh_pwd() {
-  char *buf = malloc(sizeof(char) * BUFSIZE);
-
-  printf("msh_pwd: %s\n", getcwd(buf, BUFSIZE));
+  char *buf = malloc(sizeof(char) * LINE_BUFSIZE);
+  buf = getcwd(buf, LINE_BUFSIZE);
+  if (!buf)
+    perror("msh_pwd: couldn't get current directory.");
+  printf("msh_pwd: %s\n", buf);
   return 0;
 }
 
@@ -37,23 +39,39 @@ int msh_help(char **args) {
 
 /* msh_chdir: bulitin cd command. */
 int msh_chdir(char **args) {
-  int status = chdir(*args);
-  char *buf = malloc(sizeof(char) * BUFSIZE);
+  int status;
+  char *buf = malloc(sizeof(char) * LINE_BUFSIZE);
+  char *home_dir = _getenv("HOME");
 
-  printf("msh_chdir: %s\n", getcwd(buf, BUFSIZE));
+  if (*args) {
+    // Handle home character
+    if (strcmp("~\n", *args)) {
+      status = chdir(home_dir);
+    } else { // Run normal cd command
+      status = chdir(*args);
+    }
+  } else {
+    status = chdir("");
+  }
+  // print new directory
+  printf("msh_chdir: %s\n", getcwd(buf, LINE_BUFSIZE));
   return status;
 }
 
 char *_getenv(char *name) {
-  char **env = __environ, *np;
+  char **env = __environ, *np, *v;
 
   while (*env) {
     np = name;
-    while (*np && *(*env)++ == *np)
+    v = *(env++);
+
+    while (*np != '\0' && *v == *np) {
       np++;
+      v++;
+    }
 
     if (*np == '\0')
-      return ++(*env);
+      return ++v;
   }
 
   return NULL;
