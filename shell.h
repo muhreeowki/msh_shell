@@ -38,9 +38,9 @@ int executor(char **tokens);
 int msh_echo(char **args);
 int msh_help(char **args);
 int msh_chdir(char **args);
-
-void msh_exit(int *status);
-int msh_pwd();
+int msh_type(char **args);
+int msh_pwd(char **args);
+int msh_exit(int status);
 
 // UTILS
 char *_getenv(char *name);
@@ -48,7 +48,7 @@ char **getpaths();
 
 // TODO: Impliment a hash table for the builtins so that you can find it by name
 // instead of looping through to find it by index
-static Builtin builtins[] = {
-    {"echo", msh_echo}, {"help", msh_help}, {"cd", msh_chdir}};
-
+static Builtin builtins[] = {{"echo", msh_echo}, {"help", msh_help},
+                             {"cd", msh_chdir},  {"pwd", msh_pwd},
+                             {"type", msh_type}, {"exit", NULL}};
 #endif // !SHELL_H

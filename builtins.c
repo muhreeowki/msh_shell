@@ -15,14 +15,14 @@ int msh_echo(char **args) {
 }
 
 /* msh_exit: like exit, exits the shell with the provided status. */
-void msh_exit(int *status) {
+int msh_exit(int status) {
   if (status)
-    exit(*status);
+    exit(status);
   exit(EXIT_SUCCESS);
 }
 
 /* msh_pwd: like pwd, prints currect working directory. */
-int msh_pwd() {
+int msh_pwd(char **args) {
   char *buf = malloc(sizeof(char) * LINE_BUFSIZE);
   buf = getcwd(buf, LINE_BUFSIZE);
   if (!buf)
@@ -108,4 +108,17 @@ char **getpaths() {
   // NULL terminate the array;
   *(paths + i) = NULL;
   return paths;
+}
+
+/* msh_type: print the type of the command provided. */
+int msh_type(char **args) {
+  char *cmd = *args;
+  for (int i = 0; i < (sizeof(builtins) / sizeof(Builtin)); i++) {
+    if (strcmp(cmd, builtins[i].name) == 0) {
+      printf("%s is a shell builtin\n", cmd);
+      return 0;
+    }
+  }
+  printf("invalid command: not found\n");
+  return 1;
 }
