@@ -11,6 +11,7 @@
 // improved prompt.
 
 #include "shell.h"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -86,6 +87,7 @@ char **get_tokens(char *line) {
       buf_size = BUFSIZE, buf_count = 0;
   char *buf, **tokens;
   State state = NORMAL;
+  State prev_state = NORMAL;
 
   tokens = malloc(sizeof(char *) * list_size);
   if (!tokens) {
@@ -128,7 +130,7 @@ char **get_tokens(char *line) {
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
         if (state == ESCAPED)
-          state = NORMAL;
+          state = prev_state;
       } else {
         // printf("normal state\n");
         // Skip trailing whitespace
@@ -166,7 +168,7 @@ char **get_tokens(char *line) {
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
         if (state == ESCAPED)
-          state = NORMAL;
+          state = prev_state;
       }
       break;
     case '"':
@@ -190,23 +192,28 @@ char **get_tokens(char *line) {
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
         if (state == ESCAPED)
-          state = NORMAL;
+          state = prev_state;
       }
       break;
     case '\\':
-      if (state == NORMAL) {
+      if (state == NORMAL || state == IN_DQUOTES) {
+        prev_state = state;
         state = ESCAPED;
       } else {
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
         if (state == ESCAPED)
-          state = NORMAL;
+          state = prev_state;
       }
       break;
     default:
       // TODO: Handle Escaped Chars
       if (state == ESCAPED) {
-        state = NORMAL;
+        if (c == 'n')
+          c = '\n';
+        if (c == 't')
+          c = '\t';
+        state = prev_state;
       }
       *(buf + buf_count++) = c;
       *(buf + buf_count) = '\0';
@@ -232,7 +239,7 @@ char **get_tokens(char *line) {
     break;
   }
 
-  print_tokens(tokens, token_count);
+  // print_tokens(tokens, token_count);
   return tokens;
 }
 
@@ -242,7 +249,7 @@ int executor(char **tokens) {
   // Check if the command is a builtin
   // - handle pwd
   if (strcmp(cmd, "pwd") == 0)
-    return msh_pwd();
+    return msh_pwd(tokens);
   // - handle exit
   if (strcmp(cmd, "exit") == 0)
     msh_exit(0);
@@ -261,6 +268,7 @@ int executor(char **tokens) {
  * It returns the exit status of the program.
  */
 int run_program(char **tokens) {
+  // TODO: Build this from scratch
   char *cmd = *tokens;
   pid_t pid, wpid;
   int status;
@@ -269,12 +277,12 @@ int run_program(char **tokens) {
 
   if (pid == 0) { // Child Process
     // Execute the command
-    // if the exec function returns, there was an error.
-    if (!execvp(cmd, tokens)) {
-      perror("msh");
-    }
+    execvp(cmd, tokens);
+    // If the exec function returns, there was an error.
+    // printf("invalid command: %s\n", cmd);
+    perror("invalid command");
     exit(EXIT_FAILURE);
-  } else if (pid < 0) { // Error forking the process
+  } else if (pid == -1) { // Error forking the process
     perror("msh");
   } else { // Parent process
     do {
