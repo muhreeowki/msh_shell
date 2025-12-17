@@ -8,15 +8,15 @@
 
 /* msh_echo: prints to screen a list of strings. */
 int msh_echo(char **args) {
-  while (*args) {
-    printf(*(args + 1) ? "%s " : "%s", *args);
+  while (*args != NULL) {
+    printf(*(args + 1) != NULL ? "%s " : "%s", *args);
     args++;
   }
   putchar('\n');
   return 0;
 }
 
-/* msh_exit: like exit, exits the shell with the provided status. */
+/* msh_exit: like exit, exits the shell with the provided status.*/
 int msh_exit(int status) {
   if (status)
     exit(status);
@@ -43,23 +43,23 @@ int msh_help(char **args) {
 /* msh_chdir: bulitin cd command. */
 int msh_chdir(char **args) {
   int status;
-  char *buf = malloc(sizeof(char) * LINE_BUFSIZE);
-  char *home_dir = _getenv("HOME");
 
+  char *home_dir = _getenv("HOME");
   if (*args) {
     // Handle home character
-    if (strcmp("~\n", *args)) {
+    if (strcmp("~", *args) == 0) {
       status = chdir(home_dir);
     } else { // Run normal cd command
       status = chdir(*args);
     }
   } else {
-    status = chdir("");
+    status = chdir(home_dir);
   }
-  // print new directory
-  printf("msh_chdir: %s\n", getcwd(buf, LINE_BUFSIZE));
 
-  free(buf);
+  if (status != 0)
+    printf("cd: %s: No such file or directory\n", *args);
+  // print new directory
+  // printf("msh_chdir: %s\n", getcwd(buf, LINE_BUFSIZE));
   return status;
 }
 
@@ -145,8 +145,8 @@ int msh_type(char **args) {
   }
 
   printf("%s: not found\n", cmd);
-  free(path);
-  free(*paths);
-  free(paths);
+  // free(path);
+  // free(*paths);
+  // free(paths);
   return 1;
 }
