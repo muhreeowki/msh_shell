@@ -33,7 +33,7 @@ void repl() {
 
     /* Read input (getline). Exit on EOF. */
     line = read_line();
-    printf("line: %s\n", line);
+    // printf("line: %s\n", line);
     if (!line) {
       printf("bye.\n");
       exit(EXIT_FAILURE);
@@ -43,7 +43,7 @@ void repl() {
     tokens = get_tokens(line, &total_tokens);
     if (tokens == NULL)
       continue;
-    print_tokens(tokens);
+    // print_tokens(tokens);
 
     /* Run commands */
     status = executor(tokens);
@@ -72,7 +72,7 @@ char *read_line() {
     if (i >= max) {
       max += LINE_BUFSIZE;
       line = realloc(line, max);
-      printf("reallocated memory!");
+      // printf("reallocated memory!");
       if (!line) {
         printf("msh: failed to reallocate memory for tokens.");
         exit(EXIT_FAILURE);
@@ -115,7 +115,7 @@ char **get_tokens(char *line, int *total_tokens) {
     if (token_count >= list_size - 2) {
       list_size += TOKENS_LIST_SIZE;
       tokens = realloc(tokens, list_size);
-      printf("reallocated token list size.\n");
+      // printf("reallocated token list size.\n");
       if (tokens == NULL) {
         printf("msh: failed to allocate memory for tokens.");
         exit(EXIT_FAILURE);
@@ -126,7 +126,7 @@ char **get_tokens(char *line, int *total_tokens) {
     if (buf_count + 1 >= buf_size) {
       buf_size += BUFSIZE;
       buf = realloc(buf, buf_size);
-      printf("reallocated token buffer size");
+      // printf("reallocated token buffer size");
       if (!buf) {
         printf("msh: failed to allocate memory for tokens.");
         exit(EXIT_FAILURE);
@@ -180,10 +180,13 @@ char **get_tokens(char *line, int *total_tokens) {
         // buf_count = 0;
         // state = NORMAL;
       } else {
+        if (state == ESCAPED) {
+          if (prev_state == IN_DQUOTES)
+            *(buf + buf_count++) = '\\';
+          state = prev_state;
+        }
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
-        if (state == ESCAPED)
-          state = prev_state;
       }
       break;
 
@@ -211,8 +214,9 @@ char **get_tokens(char *line, int *total_tokens) {
       } else {
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
-        if (state == ESCAPED)
+        if (state == ESCAPED) {
           state = prev_state;
+        }
       }
       break;
 
@@ -231,10 +235,12 @@ char **get_tokens(char *line, int *total_tokens) {
     default:
       // TODO: Handle Escaped Chars
       if (state == ESCAPED) {
-        if (c == 'n')
-          c = '\n';
-        if (c == 't')
-          c = '\t';
+        // if (c == 'n')
+        //   c = '\n';
+        // if (c == 't')
+        //   c = '\t';
+        if (prev_state == IN_DQUOTES)
+          *(buf + buf_count++) = '\\';
         state = prev_state;
       }
       *(buf + buf_count++) = c;
