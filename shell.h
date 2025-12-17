@@ -29,7 +29,7 @@ typedef struct builtin {
 // SHELL REPL FUNCTIONS
 void repl();
 char *read_line();
-char **get_tokens(char *line);
+char **get_tokens(char *line, int *total_tokens);
 int run_program(char **tokens);
 void print_tokens(char **tokens, int lim);
 int executor(char **tokens);

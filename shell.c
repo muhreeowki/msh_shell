@@ -11,7 +11,6 @@
 // improved prompt.
 
 #include "shell.h"
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,21 +27,29 @@ void repl() {
 
   // Read Eval Print Loop
   for (;;) {
-    printf("> ");
+    /* Print the prompt*/
+    printf("$ ");
+
     /* Read input (getline). Exit on EOF. */
     line = read_line();
     if (!line) {
       printf("bye.\n");
       exit(EXIT_FAILURE);
     }
+
     /* Scanning/Lexing */
-    tokens = get_tokens(line);
+    tokens = get_tokens(line, &total_tokens);
     if (!tokens)
       continue;
+
     /* Run commands */
     status = executor(tokens);
-    // Repeat
+
+    /* Free allocated memory */
     free(line);
+    for (int i = 0; i < total_tokens; i++) {
+      free(*(tokens + i));
+    }
     free(tokens);
   }
 }
@@ -82,7 +89,7 @@ char *read_line() {
 
 /* scan_tokens: splits an input line into a list of n tokens and returns the
  * number of tokens. */
-char **get_tokens(char *line) {
+char **get_tokens(char *line, int *total_tokens) {
   int c = 0, i = 0, list_size = TOKENS_LIST_SIZE, token_count = 0,
       buf_size = BUFSIZE, buf_count = 0;
   char *buf, **tokens;
@@ -240,6 +247,8 @@ char **get_tokens(char *line) {
   }
 
   // print_tokens(tokens, token_count);
+  free(buf);
+  *total_tokens = token_count;
   return tokens;
 }
 
@@ -279,8 +288,8 @@ int run_program(char **tokens) {
     // Execute the command
     execvp(cmd, tokens);
     // If the exec function returns, there was an error.
-    // printf("invalid command: %s\n", cmd);
-    perror("invalid command");
+    printf("%s: command not found\n", cmd);
+    // perror("invalid command");
     exit(EXIT_FAILURE);
   } else if (pid == -1) { // Error forking the process
     perror("msh");
