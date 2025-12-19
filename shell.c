@@ -1,5 +1,4 @@
 // TODO: Implement the following features.
-// builtin comands: cd, cat, echo, help.
 // environment variables: getenv, setenv, unsetenv, export etc.
 // alliases.
 // shell opperations: |, &, >, <, >>, <<, ||, &&
@@ -14,6 +13,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 int main(int argc, char *argv[]) {
   repl();
@@ -21,15 +21,26 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
+char *io_redirect_perm = "w";
+char *io_redirect_filename = "";
+
 void repl() {
   char **tokens = NULL, *line = NULL;
-  int total_tokens, status;
+  int total_tokens, status, stdout_backup_fd, out_file_fd;
+  FILE *out_file; // output file
 
   // Read Eval Print Loop
   for (;;) {
+    total_tokens = 0;
+    io_redirect_perm = "";
+    io_redirect_filename = "";
+
+    // set stdout as output.
+    out_file = NULL;
+    stdout_backup_fd = dup(1);
+
     /* Print the prompt*/
     printf("$ ");
-    total_tokens = 0;
 
     /* Read input (getline). Exit on EOF. */
     line = read_line();
@@ -43,10 +54,38 @@ void repl() {
     tokens = get_tokens(line, &total_tokens);
     if (tokens == NULL)
       continue;
+
     // print_tokens(tokens);
+
+    /* Redirecting output */
+    if (strlen(io_redirect_perm) > 0) {
+      if (strlen(io_redirect_filename) > 0) {
+        // Open the output file
+        out_file = fopen(io_redirect_filename, io_redirect_perm);
+        if (out_file == NULL) {
+          perror("msh");
+          continue;
+        }
+        // Get the file descriptor
+        out_file_fd = out_file->_fileno;
+        // Replace stdout with output file
+        dup2(out_file_fd, 1);
+        // close output file
+        close(out_file_fd);
+      } else {
+        printf("msh: parse error: no redirect filename provided");
+      }
+    }
 
     /* Run commands */
     status = executor(tokens);
+
+    // Clean the redirect output file and restore to stdout
+    if (out_file != NULL) {
+      dup2(stdout_backup_fd, 1);
+      close(stdout_backup_fd);
+      fclose(out_file);
+    }
 
     /* clean allocated memory */
     for (int i = 0; *(tokens + i) != NULL; i++)
@@ -93,8 +132,8 @@ char *read_line() {
  * number of tokens. */
 char **get_tokens(char *line, int *total_tokens) {
   char *buf, **tokens;
-  State state = NORMAL;
-  State prev_state = NORMAL;
+  State state = NORMAL, prev_state = NORMAL;
+  IOState io_state = DEFAULT;
   int c = 0, i = 0, list_size = TOKENS_LIST_SIZE, token_count = 0,
       buf_size = BUFSIZE, buf_count = 0;
 
@@ -115,7 +154,6 @@ char **get_tokens(char *line, int *total_tokens) {
     if (token_count >= list_size - 2) {
       list_size += TOKENS_LIST_SIZE;
       tokens = realloc(tokens, list_size);
-      // printf("reallocated token list size.\n");
       if (tokens == NULL) {
         printf("msh: failed to allocate memory for tokens.");
         exit(EXIT_FAILURE);
@@ -126,7 +164,6 @@ char **get_tokens(char *line, int *total_tokens) {
     if (buf_count + 1 >= buf_size) {
       buf_size += BUFSIZE;
       buf = realloc(buf, buf_size);
-      // printf("reallocated token buffer size");
       if (!buf) {
         printf("msh: failed to allocate memory for tokens.");
         exit(EXIT_FAILURE);
@@ -134,27 +171,37 @@ char **get_tokens(char *line, int *total_tokens) {
     }
 
     // Build the token
-    // printf("char: %c\n", c);
     switch (c) {
 
     case ' ':
       if (state != NORMAL) {
+
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
+
         if (state == ESCAPED)
           state = prev_state;
+
       } else {
+
         // Skip trailing whitespace
         if (*buf == '\0') {
           continue;
         }
+
         // Emit the token
         char *token = malloc(sizeof(char) * (buf_count + 1));
         token = strncpy(token, buf, buf_count + 1);
-        *(tokens + token_count++) = token;
         // Reset the Buffer
         *buf = '\0';
         buf_count = 0;
+        // Set the redirect output
+        if (io_state == REDIRECT_STDOUT) {
+          io_redirect_filename = token;
+          io_state = DEFAULT;
+        } else {
+          *(tokens + token_count++) = token;
+        }
       }
       break;
 
@@ -163,22 +210,6 @@ char **get_tokens(char *line, int *total_tokens) {
         state = IN_SQUOTES;
       } else if (state == IN_SQUOTES) {
         state = NORMAL;
-        // Check for Concatination: Check if the next char is another quote
-        // if (*(line + i) == '\'') {
-        //   ++i;
-        //   continue;
-        // } else if (*(line + i) != ' ') {
-        //   state = NORMAL;
-        //   continue;
-        // }
-        // // Emit the token
-        // char *token = malloc(sizeof(char) * (buf_count + 1));
-        // token = strncpy(token, buf, buf_count);
-        // *(tokens + token_count++) = token;
-        // // Reset the Buffer
-        // *buf = '\0';
-        // buf_count = 0;
-        // state = NORMAL;
       } else {
         if (state == ESCAPED) {
           if (prev_state == IN_DQUOTES)
@@ -195,22 +226,6 @@ char **get_tokens(char *line, int *total_tokens) {
         state = IN_DQUOTES;
       } else if (state == IN_DQUOTES) {
         state = NORMAL;
-        // Check for Concatination: Check if the next char is another quote
-        // if (*(line + i) == '"') {
-        //   ++i;
-        //   continue;
-        // } else if (*(line + i) != ' ') {
-        //   state = NORMAL;
-        //   continue;
-        // }
-        // // Emit the token
-        // char *token = malloc(sizeof(char) * (buf_count + 1));
-        // token = strncpy(token, buf, buf_count);
-        // *(tokens + token_count++) = token;
-        // // Reset the Buffer
-        // *buf = '\0';
-        // buf_count = 0;
-        // state = NORMAL;
       } else {
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
@@ -232,6 +247,28 @@ char **get_tokens(char *line, int *total_tokens) {
       }
       break;
 
+    case '>':
+      if (state == NORMAL) {
+        io_state = REDIRECT_STDOUT;
+        io_redirect_perm = "w";
+        // Check the next char
+        if (*(line + i) == '>') {
+          io_redirect_perm = "a+";
+          i++;
+        }
+        // Emit the previous token
+        if (!(buf_count == 0 || buf_count == 1 && *buf == '1')) {
+          char *token = malloc(sizeof(char) * (buf_count + 1));
+          token = strncpy(token, buf, buf_count + 1);
+          *(tokens + token_count++) = token;
+        }
+        // Reset the Buffer
+        *buf = '\0';
+        buf_count = 0;
+        break;
+      }
+      // Fall through if not in NORMAL state
+
     default:
       // TODO: Handle Escaped Chars
       if (state == ESCAPED) {
@@ -249,11 +286,17 @@ char **get_tokens(char *line, int *total_tokens) {
     }
   }
 
-  // append last token
+  // Emit last token
   if (*buf != '\0') {
     char *token = malloc(sizeof(char) * (buf_count + 1));
     token = strncpy(token, buf, buf_count + 1);
-    *(tokens + token_count++) = token;
+    // Set the redirect output
+    if (io_state == REDIRECT_STDOUT) {
+      io_redirect_filename = token;
+      io_state = DEFAULT;
+    } else {
+      *(tokens + token_count++) = token;
+    }
   }
 
   // Null terminate the tokens list

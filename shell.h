@@ -16,6 +16,13 @@
 // function declarations to be used in a single struct.
 typedef int (*BulitinFunc)(char **);
 typedef enum { NORMAL, IN_SQUOTES, IN_DQUOTES, ESCAPED } State;
+typedef enum {
+  DEFAULT,
+  REDIRECT_STDOUT,
+  REDIRECT_STDERR,
+  REDIRECT_A_STDOUT,
+  REDIRECT_A_STDERR
+} IOState;
 
 typedef struct builtin {
   char *name;
