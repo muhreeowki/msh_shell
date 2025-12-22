@@ -21,23 +21,25 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-char *io_redirect_perm = "w";
-char *io_redirect_filename = "";
+char *io_redirect_perm = "w", *err_redirect_perm = "w",
+     *io_redirect_filename = "", *err_redirect_filename = "";
 
 void repl() {
   char **tokens = NULL, *line = NULL;
-  int total_tokens, status, stdout_backup_fd, out_file_fd;
-  FILE *out_file; // output file
+  int total_tokens, status, stdout_backup_fd, out_file_fd, stderr_backup_fd,
+      err_file_fd;
+  FILE *out_file, *err_file; // redirect files
 
   // Read Eval Print Loop
   for (;;) {
     total_tokens = 0;
-    io_redirect_perm = "";
-    io_redirect_filename = "";
+    io_redirect_perm = io_redirect_filename = err_redirect_perm =
+        err_redirect_filename = "";
 
-    // set stdout as output.
-    out_file = NULL;
+    // set output default output files.
+    out_file = err_file = NULL;
     stdout_backup_fd = dup(1);
+    stderr_backup_fd = dup(2);
 
     /* Print the prompt*/
     printf("$ ");
@@ -77,14 +79,41 @@ void repl() {
       }
     }
 
+    /* Redirecting error output */
+    if (strlen(err_redirect_perm) > 0) {
+      if (strlen(err_redirect_filename) > 0) {
+        // Open the output file
+        err_file = fopen(err_redirect_filename, err_redirect_perm);
+        if (err_file == NULL) {
+          perror("msh");
+          continue;
+        }
+        // Get the file descriptor
+        err_file_fd = err_file->_fileno;
+        // Replace stdout with output file
+        dup2(err_file_fd, 2);
+        // close output file
+        close(err_file_fd);
+      } else {
+        printf("msh: parse error: no redirect filename provided");
+      }
+    }
+
     /* Run commands */
     status = executor(tokens);
 
-    // Clean the redirect output file and restore to stdout
+    // Clean the redirected output file and restore to stdout
     if (out_file != NULL) {
       dup2(stdout_backup_fd, 1);
       close(stdout_backup_fd);
       fclose(out_file);
+    }
+
+    // Clean the redirect error output file and restore to stderr
+    if (err_file != NULL) {
+      dup2(stderr_backup_fd, 2);
+      close(stderr_backup_fd);
+      fclose(err_file);
     }
 
     /* clean allocated memory */
@@ -171,19 +200,16 @@ char **get_tokens(char *line, int *total_tokens) {
     }
 
     // Build the token
+    // TODO: Make good use of the fall through feature
     switch (c) {
 
     case ' ':
       if (state != NORMAL) {
-
         *(buf + buf_count++) = c;
         *(buf + buf_count) = '\0';
-
         if (state == ESCAPED)
           state = prev_state;
-
       } else {
-
         // Skip trailing whitespace
         if (*buf == '\0') {
           continue;
@@ -198,6 +224,9 @@ char **get_tokens(char *line, int *total_tokens) {
         // Set the redirect output
         if (io_state == REDIRECT_STDOUT) {
           io_redirect_filename = token;
+          io_state = DEFAULT;
+        } else if (io_state == REDIRECT_STDERR) {
+          err_redirect_filename = token;
           io_state = DEFAULT;
         } else {
           *(tokens + token_count++) = token;
@@ -249,15 +278,22 @@ char **get_tokens(char *line, int *total_tokens) {
 
     case '>':
       if (state == NORMAL) {
-        io_state = REDIRECT_STDOUT;
-        io_redirect_perm = "w";
+        char *perm = "w";
         // Check the next char
         if (*(line + i) == '>') {
-          io_redirect_perm = "a+";
+          perm = "a+";
           i++;
         }
-        // Emit the previous token
-        if (!(buf_count == 0 || buf_count == 1 && *buf == '1')) {
+        if (buf_count == 0 || (buf_count == 1 && *buf == '1')) {
+          // Redirect stdout
+          io_state = REDIRECT_STDOUT;
+          io_redirect_perm = perm;
+        } else if (buf_count == 1 && *buf == '2') {
+          // Redirect stderr
+          io_state = REDIRECT_STDERR;
+          err_redirect_perm = perm;
+        } else {
+          // Emit the previous token
           char *token = malloc(sizeof(char) * (buf_count + 1));
           token = strncpy(token, buf, buf_count + 1);
           *(tokens + token_count++) = token;
@@ -293,6 +329,9 @@ char **get_tokens(char *line, int *total_tokens) {
     // Set the redirect output
     if (io_state == REDIRECT_STDOUT) {
       io_redirect_filename = token;
+      io_state = DEFAULT;
+    } else if (io_state == REDIRECT_STDERR) {
+      err_redirect_filename = token;
       io_state = DEFAULT;
     } else {
       *(tokens + token_count++) = token;
